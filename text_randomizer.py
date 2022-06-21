@@ -104,7 +104,6 @@ def handle_text(text: str) -> None:
                 text += ''.join(answer_string)
             else:
                 text += node.make_decision()
-    # print(text)
 
     i = 1
     while i < len(text) - 1:
