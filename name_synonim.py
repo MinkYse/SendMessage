@@ -31,9 +31,11 @@ def transliterateAndCut(name: str) -> str:
             name = name.replace(list(replace_key.keys())[0], replace_key[list(replace_key.keys())[0]])
     name_clean = ""
     for letter in name:
-        if letter.isalpha() or letter == " ": name_clean += letter;
+        if letter.isalpha() or letter == " ":
+            name_clean += letter
     for word in name_clean.split():
-        if len(word) > 2: return word;
+        if len(word) > 2:
+            return word
     return "ERROR"
 
 
@@ -43,8 +45,10 @@ def readSynonimFile(filename: str):
         strings = file.readlines()
     for string in strings:
         string = string.rstrip('\n').lstrip('\ufeff')
-        if '>' in string: synonims.add_synonim(string);
-        else: synonims.add_unique(string);
+        if '>' in string:
+            synonims.add_synonim(string)
+        else:
+            synonims.add_unique(string)
     return synonims
 
 

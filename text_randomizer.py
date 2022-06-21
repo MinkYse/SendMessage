@@ -94,13 +94,13 @@ def handle_text(text: str) -> None:
             text += node
         elif type(node) == TextNode:
             if i < 2:
-                text += node.make_decision();
+                text += node.make_decision()
             elif starting_nodes[i - 1] == '!' and starting_nodes[i - 2] == '!':
                 text = text[:-2]
                 answer_string = list(node.make_decision())
                 try:
                     answer_string[0] = answer_string[0].upper()
-                except Exception: pass;
+                except Exception: pass
                 text += ''.join(answer_string)
             else:
                 text += node.make_decision()

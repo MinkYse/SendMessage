@@ -3,7 +3,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.chrome.service import Service
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, NoSuchElementException
+from selenium.webdriver.remote.webelement import WebElement
 from webdriver_manager.chrome import ChromeDriverManager
 
 import PySimpleGUI as sg
@@ -28,7 +29,7 @@ logging.basicConfig(format='[%(levelname)s] - [%(asctime)s] -  %(message)s', dat
 
 class VKSendMessage:
 
-    def __init__(self, list_name, pause_area, message_text_file):
+    def __init__(self, list_name: str, pause_area: str, message_text_file: str):
         self.browser = None
         self.message_text_file = f'Сообщения-список\{message_text_file}'
         self.list_name = f'Абоненты-список\{list_name}'
@@ -57,15 +58,12 @@ class VKSendMessage:
         sleep(2)
 
     @staticmethod
-    def string_randomize(string):
-        try:
-            randomized_string = text_randomizer.handle_text(string)
-            return randomized_string
-        except text_randomizer.FormatException:
-            logging.error(f'Некорректный ти сообщения {string}')
+    def string_randomize(string: str):
+        randomized_string = text_randomizer.handle_text(string)
+        return randomized_string
 
     @staticmethod
-    def copy_directory(src, dst, symlinks=False, ignore=None):
+    def copy_directory(src: str, dst: str, symlinks=False, ignore=None):
         for item in os.listdir(src):
             s = os.path.join(src, item)
             d = os.path.join(dst, item)
@@ -80,6 +78,19 @@ class VKSendMessage:
                 except:
                     continue
 
+    def copy(self, status: bool):
+        try:
+            logging.info('Начало копирование папки профилей')
+            if status:
+                shutil.rmtree(self.copy_profiles_dst)
+            self.copy_directory(self.chrome_profiles_dst, self.copy_profiles_dst)
+            logging.info('Копирование завершено')
+        except (shutil.Error, OSError):
+            logging.error(
+                'Не удается скопировать папку с профилями, проверьте путь к директории и попробуйте снова')
+            input('Нажмите любую клавишу для выхода: ')
+            sys.exit()
+
     def copy_profile_directory(self):
         if os.path.exists(self.copy_profiles_dst):
             date_creation = os.path.getctime(self.copy_profiles_dst)
@@ -92,28 +103,9 @@ class VKSendMessage:
                                  minutes=date_now.minute, seconds=date_now.second)
 
             if (date_now - date_creation).seconds > 18000:
-                try:
-                    logging.info('Начало копирование папки профилей')
-                    shutil.rmtree(self.copy_profiles_dst)
-                    self.copy_directory(self.chrome_profiles_dst, self.copy_profiles_dst)
-                    logging.info('Копирование завершено')
-                except Exception as message:
-                    logging.error(
-                        'Не удается скопировать папку с профилями, проверьте путь к директории и попробуйте снова')
-                    input('Нажмите любую клавишу для выхода: ')
-                    sys.exit()
-            else:
-                pass
+                self.copy(True)
         else:
-            try:
-                logging.info('Начало копирование папки профилей')
-                self.copy_directory(self.chrome_profiles_dst, self.copy_profiles_dst)
-                logging.info('Копирование завершено')
-            except Exception as message:
-                logging.error(
-                    'Не удается скопировать папку с профилями, проверьте путь к директории и попробуйте снова')
-                input('Нажмите любую клавишу для выхода: ')
-                sys.exit()
+            self.copy(False)
 
     def get_random_string(self):
         with open(self.message_text_file, 'r', encoding='utf-8') as file:
@@ -128,7 +120,7 @@ class VKSendMessage:
                 file.write(f'{user}\n')
 
     @staticmethod
-    def get_name_synonim(user_name):
+    def get_name_synonim(user_name: str):
         name = user_name.lower()
         name = name_synonim.transliterateAndCut(name)
         filename = 'Name_Synonim.txt'
@@ -141,12 +133,12 @@ class VKSendMessage:
         return "".join(name)
 
     @staticmethod
-    def get_pause(pause_range):
+    def get_pause(pause_range: str):
         pause_time_range = pause_range.split(',')
         pause = uniform(float(pause_time_range[0]), float(pause_time_range[1]))
         return float('{:.1f}'.format(pause))
 
-    def send_message(self, input_field, message, click_button, user_id):
+    def send_message(self, input_field: WebElement, message: str, click_button: WebElement, user_id: str):
         input_field.clear()
         new_message = message.replace('\\n', '^')
         for letter in new_message:
@@ -162,7 +154,7 @@ class VKSendMessage:
         sleep(pause)
 
     @staticmethod
-    def get_list_messages_pauses(randomized_string):
+    def get_list_messages_pauses(randomized_string: str):
         time_sleep_list = re.findall(r'\<(.*?)\>', randomized_string.replace(' ', ''))
         messages_list = re.split(r'\<.*?\>', randomized_string)
 
@@ -203,7 +195,7 @@ class VKSendMessage:
                     user_information = self.browser.find_element(by=By.XPATH,
                                                                  value="//span[@class='im-page--title-main']").get_attribute(
                         'title')
-                except Exception:
+                except NoSuchElementException:
                     logging.error(f'Не удалось определить имя пользователя')
                     self.change_user_status(user_id, 'error')
                     continue
@@ -216,7 +208,7 @@ class VKSendMessage:
                 string = self.get_random_string().replace('*name*', user_name)
                 try:
                     randomized_string = self.string_randomize(string)
-                except Exception:
+                except text_randomizer.FormatException:
                     logging.error(f'Некорректный тип сообщения {string}')
                     self.change_user_status(user_id, 'error')
                     continue
@@ -225,7 +217,7 @@ class VKSendMessage:
                 try:
                     input_field = self.browser.find_element(by=By.XPATH,
                                                             value="//div[contains(@class, 'im_editable')]")
-                except Exception:
+                except NoSuchElementException:
                     logging.error(f'Ошибка при отправке сообщения')
                     self.change_user_status(user_id, 'error')
                     continue
@@ -260,27 +252,26 @@ class VKSendMessage:
             sys.exit()
 
 
-def get_list_dir(dir):
-    dirname = dir
-    dirfiles = os.listdir(dirname)
-    list = []
-    for file in dirfiles:
+def get_list_dir(dir: str):
+    dir_files = os.listdir(dir)
+    file_list = []
+    for file in dir_files:
         if file.endswith('txt'):
-            list.append(file)
-    return list
+            file_list.append(file)
+    return file_list
 
 
 def simple_gui():
     sg.theme('LightBrown11')
 
-    list = get_list_dir('Абоненты-список')
-    list2 = get_list_dir('Сообщения-список')
+    user_list = get_list_dir('Абоненты-список')
+    messages_list = get_list_dir('Сообщения-список')
 
     layout = [
         [sg.Text('Выберите файл с пользователями в папке Абоненты-список')],
-        [sg.Combo(values=list, size=15)],
+        [sg.Combo(values=user_list, size=15)],
         [sg.Text('Выберите файл с сообщениями в папке Сообщения-список')],
-        [sg.Combo(values=list2, size=15)],
+        [sg.Combo(values=messages_list, size=15)],
         [sg.Text('Выберите паузу между отправлениями сообщений\nразным анкетам')],
         [sg.InputText(default_text=3, size=3), sg.InputText(default_text=9, size=3)],
         [sg.Text('от     до     (в секундах)')],
